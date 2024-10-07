@@ -32,9 +32,14 @@ def manage(conf_dir, org, token):
 @click.option(
     "--default/--no-default", default=True, help="Set default branch as default."
 )
-def add_branch(conf_dir, branch, default=True):
+@click.option("--repo-whitelist", help="CSV list of repo names to update")
+def add_branch(conf_dir, branch, default=True, repo_whitelist=None):
     """Add a branch to all repositories in the configuration."""
-    ConfFileManager(conf_dir).add_branch(branch, default=default)
+    if repo_whitelist:
+        repo_whitelist = [x.strip() for x in repo_whitelist.split(",") if x.strip()]
+    ConfFileManager(conf_dir).add_branch(
+        branch, default=default, repo_whitelist=repo_whitelist
+    )
 
 
 if __name__ == "__main__":

@@ -26,10 +26,13 @@ class ConfFileManager:
             "repo", checksum=False, by_filepath=True
         )
 
-    def add_branch(self, branch, default=True):
+    def add_branch(self, branch, default=True, repo_whitelist=None):
         """Add a branch to all repositories in the configuration."""
         for filepath, repo in self.conf_repo.items():
-            for repo_data in repo.values():
+            changed = False
+            for repo_slug, repo_data in repo.items():
+                if repo_whitelist and repo_slug not in repo_whitelist:
+                    continue
                 if self._has_manual_branch_mgmt(repo_data):
                     _logger.info(
                         "Skipping repo %s as manual_branch_mgmt is enabled.",
@@ -38,10 +41,13 @@ class ConfFileManager:
                     continue
                 if self._can_add_new_branch(branch, repo_data):
                     repo_data["branches"].append(branch)
+                    changed = True
                 if default and self._can_change_default_branch(repo_data):
                     repo_data["default_branch"] = branch
-            self.conf_loader.save_conf(filepath, repo)
-            _logger.info("Branch %s added to %s.", branch, filepath.as_posix())
+                    changed = True
+            if changed:
+                self.conf_loader.save_conf(filepath, repo)
+                _logger.info("Branch %s added to %s.", branch, filepath.as_posix())
 
     def _has_manual_branch_mgmt(self, repo_data):
         return repo_data.get("manual_branch_mgmt")
