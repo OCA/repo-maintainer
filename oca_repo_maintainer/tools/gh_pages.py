@@ -3,8 +3,7 @@
 # Copyright 2023 Camptocamp SA
 # @author: Simone Orsi
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
-"""Script to generate gh pages
-"""
+"""Script to generate gh pages"""
 
 from pathlib import Path
 

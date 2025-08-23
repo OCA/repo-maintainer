@@ -71,7 +71,7 @@ class TestManager(TestCase):
                     "name": "Repository 2",
                     "description": "Repo used to run real tests on oca-repo-manage tool.",
                     "psc": "test-team-2",
-                    "maintainers": ["simahawk"],
+                    "maintainers": ["simahawk", "etobella"],
                     "branches": ["13.0", "12.0"],
                     "category": "Accounting",
                 },
@@ -224,6 +224,7 @@ class TestManager(TestCase):
             self.assertEqual(call.args[0], op["cmd"])
             self.assertEqual(call.kwargs, op["kw"])
 
+        # sorted as seen in cassette (not real calls)
         expected_requests = (
             # get repos
             {
@@ -295,7 +296,7 @@ class TestManager(TestCase):
                 "method": "PUT",
                 "body": {"permission": "push"},
             },
-            # set user on repo
+            # add user on repo
             {
                 "url": "https://api.github.com/repos/OCA/test-repo-2/collaborators/simahawk",  # noqa
                 "method": "PUT",
@@ -308,6 +309,35 @@ class TestManager(TestCase):
             {
                 "url": "https://api.github.com/user",
                 "method": "GET",
+            },
+            # get repo collaborators
+            {
+                "url": (
+                    "https://api.github.com/repos/OCA/"
+                    "test-repo-1/collaborators?affiliation=all&per_page=100"
+                ),
+                "method": "GET",
+            },
+            # get repo collaborators
+            {
+                "url": (
+                    "https://api.github.com/repos/OCA/"
+                    "test-repo-2/collaborators?affiliation=all&per_page=100"
+                ),
+                "method": "GET",
+            },
+            # remove user on repo
+            {
+                "url": "https://api.github.com/repos/OCA/test-repo-2/collaborators/etobella",
+                "method": "PUT",
+            },
+            {
+                "url": "https://api.github.com/repos/OCA/test-repo-2/collaborators/petrus-v",
+                "method": "DELETE",
+            },
+            {
+                "url": "https://api.github.com/repos/OCA/test-repo-1/collaborators/simahawk",
+                "method": "DELETE",
             },
         )
         for req, expected in zip(cassette.requests, expected_requests):

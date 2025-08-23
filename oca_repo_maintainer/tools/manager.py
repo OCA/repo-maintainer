@@ -163,8 +163,16 @@ class RepoManager:
                 team_repos[repo_data["psc"]]["team"].add_repository(
                     "{}/{}".format(self.org, repo), "push"
                 )
-            for member in repo_data.get("maintainers", []):
-                gh_repo.add_collaborator(member)
+            current_repo_maintainers = {
+                collaborator.login
+                for collaborator in gh_repo.collaborators(affiliation="all")
+            }
+            expected_maintainers = set(repo_data.get("maintainers", []))
+            for new_collaborator in expected_maintainers - current_repo_maintainers:
+                gh_repo.add_collaborator(new_collaborator, permission="maintain")
+            for old_collaborator in current_repo_maintainers - expected_maintainers:
+                gh_repo.remove_collaborator(old_collaborator)
+
             for branch in sorted(repo_data.get("branches")):
                 if str(branch) not in repo_branches:
                     self._create_branch(gh_repo, str(branch))

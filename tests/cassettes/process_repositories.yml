@@ -1158,4 +1158,138 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: 
+    headers:
+      Accept:
+      - application/vnd.github.v3.full+json
+      Accept-Charset:
+      - utf-8
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - github3.py/4.0.1
+    method: GET
+    uri: "https://api.github.com/repos/OCA/test-repo-1/collaborators?affiliation=all&per_page=100"
+  response:
+    body:
+      string: '[{"login": "simahawk", "id": 987654, "node_id": "U_abc", "avatar_url": "https://avatars.githubusercontent.com/u/987654?v=4", "gravatar_id": "", "url": "https://api.github.com/users/simahawk", "html_url": "https://github.com/simahawk", "followers_url": "https://api.github.com/users/simahawk/followers", "following_url": "https://api.github.com/users/simahawk/following{/other_user}", "gists_url": "https://api.github.com/users/simahawk/gists{/gist_id}", "starred_url": "https://api.github.com/users/simahawk/starred{/owner}{/repo}", "subscriptions_url": "https://api.github.com/users/simahawk/subscriptions", "organizations_url": "https://api.github.com/users/simahawk/orgs", "repos_url": "https://api.github.com/users/simahawk/repos", "events_url": "https://api.github.com/users/simahawk/events{/privacy}", "received_events_url": "https://api.github.com/users/simahawk/received_events", "type": "User", "user_view_type": "public", "site_admin": false, "permissions": {"admin": false, "maintain": true, "push": true, "triage": true, "pull": true}, "role_name": "maintain"}]'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+
+- request:
+    body: 
+    headers:
+      Accept:
+      - application/vnd.github.v3.full+json
+      Accept-Charset:
+      - utf-8
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - github3.py/4.0.1
+    method: GET
+    uri: "https://api.github.com/repos/OCA/test-repo-2/collaborators?affiliation=all&per_page=100"
+  response:
+    body:
+      string: '[{"login": "simahawk", "id": 987654, "node_id": "U_abc", "avatar_url": "https://avatars.githubusercontent.com/u/987654?v=4", "gravatar_id": "", "url": "https://api.github.com/users/simahawk", "html_url": "https://github.com/simahawk", "followers_url": "https://api.github.com/users/simahawk/followers", "following_url": "https://api.github.com/users/simahawk/following{/other_user}", "gists_url": "https://api.github.com/users/simahawk/gists{/gist_id}", "starred_url": "https://api.github.com/users/simahawk/starred{/owner}{/repo}", "subscriptions_url": "https://api.github.com/users/simahawk/subscriptions", "organizations_url": "https://api.github.com/users/simahawk/orgs", "repos_url": "https://api.github.com/users/simahawk/repos", "events_url": "https://api.github.com/users/simahawk/events{/privacy}", "received_events_url": "https://api.github.com/users/simahawk/received_events", "type": "User", "user_view_type": "public", "site_admin": false, "permissions": {"admin": false, "maintain": true, "push": true, "triage": true, "pull": true}, "role_name": "maintain"}, {"login": "petrus-v", "id": 123456, "node_id": "U_def", "avatar_url": "https://avatars.githubusercontent.com/u/123456?v=4", "gravatar_id": "", "url": "https://api.github.com/users/petrus-v", "html_url": "https://github.com/petrus-v", "followers_url": "https://api.github.com/users/petrus-v/followers", "following_url": "https://api.github.com/users/petrus-v/following{/other_user}", "gists_url": "https://api.github.com/users/petrus-v/gists{/gist_id}", "starred_url": "https://api.github.com/users/petrus-v/starred{/owner}{/repo}", "subscriptions_url": "https://api.github.com/users/petrus-v/subscriptions", "organizations_url": "https://api.github.com/users/petrus-v/orgs", "repos_url": "https://api.github.com/users/petrus-v/repos", "events_url": "https://api.github.com/users/petrus-v/events{/privacy}", "received_events_url": "https://api.github.com/users/petrus-v/received_events", "type": "User", "user_view_type": "public", "site_admin": false, "permissions": {"admin": false, "maintain": true, "push": true, "triage": true, "pull": true}, "role_name": "maintain"}]'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+
+- request:
+    body: 
+    headers:
+      Accept:
+      - application/vnd.github.v3.full+json
+      Accept-Charset:
+      - utf-8
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - github3.py/4.0.1
+    method: PUT
+    uri: https://api.github.com/repos/OCA/test-repo-2/collaborators/etobella
+  response:
+    body:
+      string: '{}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: 
+    headers:
+      Accept:
+      - application/vnd.github.v3.full+json
+      Accept-Charset:
+      - utf-8
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - github3.py/4.0.1
+    method: DELETE
+    uri: https://api.github.com/repos/OCA/test-repo-2/collaborators/petrus-v
+  response:
+    body:
+      string: '{}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+
+- request:
+    body: 
+    headers:
+      Accept:
+      - application/vnd.github.v3.full+json
+      Accept-Charset:
+      - utf-8
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - github3.py/4.0.1
+    method: DELETE
+    uri: https://api.github.com/repos/OCA/test-repo-1/collaborators/simahawk
+  response:
+    body:
+      string: '{}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+
 version: 1
