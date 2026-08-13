@@ -393,6 +393,101 @@ class TestManager(TestCase):
         )
         return ops
 
+    def test_get_previous_branch_picks_closest_lower(self):
+        existing = {"14.0", "15.0", "16.0", "main"}
+        self.assertEqual(self.manager._get_previous_branch("17.0", existing), "16.0")
+
+    def test_get_previous_branch_none_falls_back_to_default(self):
+        existing = {"main"}
+        self.assertEqual(
+            self.manager._get_previous_branch("17.0", existing, "main"), "main"
+        )
+
+    def test_get_previous_branch_none_available(self):
+        existing = {"18.0"}
+        self.assertIsNone(self.manager._get_previous_branch("17.0", existing))
+
+    def test_init_branch_dispatches_to_scratch_by_default(self):
+        with (
+            mock.patch.object(RepoManager, "_init_branch_from_scratch") as from_scratch,
+            mock.patch.object(
+                RepoManager, "_init_branch_from_previous"
+            ) as from_previous,
+        ):
+            gh_repo = mock.Mock(default_branch="16.0")
+            self.manager._init_branch(
+                "/tmp/clone",
+                gh_repo,
+                "17.0",
+                {"branches": ["17.0"]},
+                {"16.0"},
+            )
+        from_scratch.assert_called_once_with("/tmp/clone", gh_repo, "17.0")
+        from_previous.assert_not_called()
+
+    def test_init_branch_dispatches_to_previous_when_flagged(self):
+        with (
+            mock.patch.object(RepoManager, "_init_branch_from_scratch") as from_scratch,
+            mock.patch.object(
+                RepoManager, "_init_branch_from_previous"
+            ) as from_previous,
+        ):
+            gh_repo = mock.Mock(default_branch="16.0")
+            self.manager._init_branch(
+                "/tmp/clone",
+                gh_repo,
+                "17.0",
+                {"branches": ["17.0"], "new_branch_not_empty": True},
+                {"16.0"},
+            )
+        from_previous.assert_called_once_with("/tmp/clone", gh_repo, "17.0", "16.0")
+        from_scratch.assert_not_called()
+
+    def test_init_branch_from_previous(self):
+        clone_dir = tempfile.mkdtemp()
+        gh_repo = mock.Mock(name="test-repo-2")
+        gh_repo.name = "test-repo-2"
+        with (
+            mock.patch.object(RepoManager, "_run_cmd") as run_cmd,
+            mock.patch.object(RepoManager, "_setup_user"),
+            mock.patch.object(copier, "run_recopy") as run_recopy,
+            mock.patch(
+                "oca_repo_maintainer.tools.manager.mark_modules_uninstallable"
+            ) as mark_uninstallable,
+        ):
+            self.manager._init_branch_from_previous(clone_dir, gh_repo, "17.0", "16.0")
+        run_recopy.assert_called_once_with(
+            clone_dir,
+            data={
+                "repo_name": "test-repo-2",
+                "repo_slug": "test-repo-2",
+                "repo_description": "test-repo-2",
+                "odoo_version": "17.0",
+            },
+            defaults=True,
+            overwrite=True,
+            unsafe=True,
+        )
+        mark_uninstallable.assert_called_once_with(clone_dir)
+        expected_cmds = (
+            [
+                "git",
+                "clone",
+                "--branch",
+                "16.0",
+                "--single-branch",
+                f"https://{self.token}@github.com/OCA/test-repo-2",
+                clone_dir,
+            ],
+            ["git", "checkout", "-b", "17.0"],
+            ["git", "add", "-A"],
+            ["git", "commit", "-m", "[MIG] Create 17.0 branch from 16.0"],
+            ["git", "push", "origin", "HEAD"],
+        )
+        for call, cmd in zip(run_cmd.call_args_list, expected_cmds):
+            self.assertEqual(call.args[0], cmd)
+        os.rmdir(clone_dir)
+
     # TODO: do the same for repos
     def test_process_psc_no_change(self):
         cs_filepath = conf_path2 / "checksum.yml"
