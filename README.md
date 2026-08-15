@@ -23,6 +23,9 @@ Features:
 * ``oca-repo-manage`` used to automatically maintain repositories based on YAML conf (see OCA conf below)
 * ``oca-repo-pages`` used to automatically generate repo inventory docs from the same YAML conf
 * ``oca-repo-add-branch`` used to manually add new branches to existing conf
+* ``oca-repo-set-default-branch`` used to manually set an existing branch as the default one
+
+See [CLI reference](#cli-reference) below for the full list of options of each command.
 
 ## I can use it on my own organization?
 
@@ -68,6 +71,90 @@ Go to the conf repo on your file system and run this:
 Review, stage all the changes, commit and open a PR.
 
 You can prevent this tool to edit a repo by adding ``manual_branch_mgmt`` boolean flag to repo's conf.
+
+## Set the default branch on all repos
+
+This action has to be performed manually when you need to switch the default branch on all (or some) repos in your conf.
+Eg: when a new Odoo version becomes the stable one.
+
+Go to the conf repo on your file system and run this:
+
+    oca-repo-set-default-branch --conf-dir ./conf/ --branch 18.0
+
+Review, stage all the changes, commit and open a PR.
+
+Unlike ``oca-repo-add-branch``, this command always forces ``branch`` as the default
+(adding it to the repo's ``branches`` list if it's not there yet), regardless of whether
+``default_branch`` was already set in the conf.
+
+You can prevent this tool from editing a repo by adding the ``manual_branch_mgmt`` boolean
+flag to the repo's conf, and repos whose current default branch is ``master`` or ``main``
+are always left untouched (they are assumed to be tool repos with a single working branch).
+
+## CLI reference
+
+### oca-repo-manage
+
+Setup and update repositories and teams based on the YAML conf.
+
+| Option | Required | Default | Description |
+| --- | --- | --- | --- |
+| ``--conf-dir`` | yes | - | Folder where configuration is stored |
+| ``--token`` | yes | env var ``GITHUB_TOKEN`` | Github token used to talk to the API |
+| ``--org`` | no | ``OCA`` | The Github organization to operate on |
+
+```
+oca-repo-manage --conf-dir ./conf --org OCA --token $GITHUB_TOKEN
+```
+
+### oca-repo-pages
+
+Generate the repo inventory docs from the YAML conf.
+
+| Option | Required | Default | Description |
+| --- | --- | --- | --- |
+| ``--conf-dir`` | yes | - | Folder where configuration is stored |
+| ``--path`` | yes | - | Folder where the generated pages must be written |
+| ``--org`` | no | ``OCA`` | The Github organization to operate on |
+
+```
+oca-repo-pages --conf-dir ./conf --path docsource --org OCA
+```
+
+### oca-repo-add-branch
+
+Add a new branch to all repositories in the conf (optionally setting it as default).
+
+| Option | Required | Default | Description |
+| --- | --- | --- | --- |
+| ``--conf-dir`` | yes | - | Folder where configuration is stored |
+| ``--branch`` | yes | - | New branch name to add |
+| ``--default`` / ``--no-default`` | no | ``--default`` | Also set the new branch as the repo's default branch |
+| ``--repo-whitelist`` | no | - | CSV list of repo names to update; if omitted, all repos are updated |
+
+```
+oca-repo-add-branch --conf-dir ./conf --branch 18.0 --no-default --repo-whitelist repo-a,repo-b
+```
+
+A repo is skipped when it has ``manual_branch_mgmt: true`` in its conf, or when it already
+has ``master``/``main`` among its branches or as its default branch.
+
+### oca-repo-set-default-branch
+
+Force an existing (or new) branch as the default branch on all or given repositories.
+
+| Option | Required | Default | Description |
+| --- | --- | --- | --- |
+| ``--conf-dir`` | yes | - | Folder where configuration is stored |
+| ``--branch`` | yes | - | Branch name to set as default |
+| ``--repo-whitelist`` | no | - | CSV list of repo names to update; if omitted, all repos are updated |
+
+```
+oca-repo-set-default-branch --conf-dir ./conf --branch 18.0 --repo-whitelist repo-a,repo-b
+```
+
+A repo is skipped when it has ``manual_branch_mgmt: true`` in its conf, or when its current
+default branch is ``master``/``main``.
 
 ## Licenses
 
