@@ -42,5 +42,16 @@ def add_branch(conf_dir, branch, default=True, repo_whitelist=None):
     )
 
 
+@click.command()
+@click.option("--conf-dir", required=True, help="Folder where configuration is stored")
+@click.option("--branch", required=True, help="New branch name to add")
+@click.option("--repo-whitelist", help="CSV list of repo names to update")
+def set_default_branch(conf_dir, branch, repo_whitelist=None):
+    """Set a branch as default on all repositories or given repositories."""
+    if repo_whitelist:
+        repo_whitelist = [x.strip() for x in repo_whitelist.split(",") if x.strip()]
+    ConfFileManager(conf_dir).set_default_branch(branch, repo_whitelist=repo_whitelist)
+
+
 if __name__ == "__main__":
     manage()

@@ -28,6 +28,61 @@ class ConfFileManager:
 
     def add_branch(self, branch, default=True, repo_whitelist=None):
         """Add a branch to all repositories in the configuration."""
+
+        def mutate(repo_data):
+            return self._mutate_add_branch(branch, default, repo_data)
+
+        for filepath in self._update_repos(repo_whitelist, mutate):
+            _logger.info("Branch %s added to %s.", branch, filepath.as_posix())
+
+    def set_default_branch(self, branch, repo_whitelist=None):
+        """Force `branch` as the default branch on all or given repositories."""
+
+        def mutate(repo_data):
+            return self._mutate_set_default(branch, repo_data)
+
+        for filepath in self._update_repos(repo_whitelist, mutate):
+            _logger.info(
+                "Default branch set to %s for %s.", branch, filepath.as_posix()
+            )
+
+    def _mutate_add_branch(self, branch, default, repo_data):
+        """Add `branch` to `repo_data` and maybe set it as default.
+
+        Returns whether `repo_data` was changed.
+        """
+        changed = False
+        if self._can_add_new_branch(branch, repo_data):
+            repo_data["branches"].append(branch)
+            changed = True
+        if default and self._can_change_default_branch(repo_data):
+            repo_data["default_branch"] = branch
+            changed = True
+        return changed
+
+    def _mutate_set_default(self, branch, repo_data):
+        """Force `branch` as the default branch on `repo_data`.
+
+        Returns whether `repo_data` was changed.
+        """
+        if repo_data.get("default_branch") in self.frozen_branches:
+            return False
+        changed = False
+        if self._can_add_new_branch(branch, repo_data):
+            repo_data["branches"].append(branch)
+            changed = True
+        if repo_data.get("default_branch") != branch:
+            repo_data["default_branch"] = branch
+            changed = True
+        return changed
+
+    def _update_repos(self, repo_whitelist, mutate):
+        """Apply `mutate` to every whitelisted, non manually-managed repo.
+
+        `mutate(repo_data)` must return whether it changed `repo_data`.
+        Saves each config file that had at least one change and yields its
+        filepath, so callers can log a method-specific message.
+        """
         for filepath, repo in self.conf_repo.items():
             changed = False
             for repo_slug, repo_data in repo.items():
@@ -39,15 +94,11 @@ class ConfFileManager:
                         filepath.as_posix(),
                     )
                     continue
-                if self._can_add_new_branch(branch, repo_data):
-                    repo_data["branches"].append(branch)
-                    changed = True
-                if default and self._can_change_default_branch(repo_data):
-                    repo_data["default_branch"] = branch
+                if mutate(repo_data):
                     changed = True
             if changed:
                 self.conf_loader.save_conf(filepath, repo)
-                _logger.info("Branch %s added to %s.", branch, filepath.as_posix())
+                yield filepath
 
     def _has_manual_branch_mgmt(self, repo_data):
         return repo_data.get("manual_branch_mgmt")
