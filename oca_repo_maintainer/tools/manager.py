@@ -173,8 +173,21 @@ class RepoManager:
                     self._create_branch(gh_repo, branch, repo_data, existing_branches)
                     existing_branches.add(branch)
             branch = repo_data.get("default_branch")
+            edit_kwargs = {}
             if branch and gh_repo.default_branch != branch:
-                gh_repo.edit(name=gh_repo.name, default_branch=branch)
+                edit_kwargs["default_branch"] = branch
+            if (
+                repo_data.get("description")
+                and repo_data.get("description") != gh_repo.description
+            ):
+                edit_kwargs["description"] = repo_data.get("description")
+            if (
+                repo_data.get("archived")
+                and bool(repo_data.get("archived", False)) != gh_repo.archived
+            ):
+                edit_kwargs["archived"] = bool(repo_data.get("archived", False))
+            if edit_kwargs:
+                gh_repo.edit(name=gh_repo.name, **edit_kwargs)
 
     def _create_branch(self, gh_repo, version, repo_data=None, existing_branches=None):
         clone_dir = tempfile.mkdtemp()

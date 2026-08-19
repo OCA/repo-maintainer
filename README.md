@@ -12,7 +12,7 @@
 This tool allows to manage repositories and teams via via YAML configuration.
 Features:
 
-* create/update repositories
+* create/update/archive repositories
 * create/update teams and roles
 * create/update branches
 * add new branches to existing YAML conf
@@ -207,6 +207,7 @@ Each entry describes one repository:
 | ``default_branch`` | no | Branch to set as the repo's default branch |
 | ``manual_branch_mgmt`` | no | When ``true``, ``oca-repo-add-branch`` / ``oca-repo-set-default-branch`` skip this repo |
 | ``new_branch_not_empty`` | no | When ``true``, a newly created branch starts from the content of the closest existing lower-version branch (falling back to the default branch) instead of from an empty repo — see [Add new branches to all repos](#add-new-branches-to-all-repos) |
+| ``archived`` | no | When set, the repository will be marked as archived. |
 
 ### psc/*.yml
 
