@@ -40,6 +40,19 @@ https://github.com/OCA/repo-maintainer-conf
 
 You can use the script `scripts/bootstrap_data.py` to generate the conf out of existing repos. Run it with `--help` to see the options.
 
+    python scripts/bootstrap_data.py --conf-dir ./conf --org OCA --token $GITHUB_TOKEN
+
+| Option | Required | Default | Description |
+| --- | --- | --- | --- |
+| ``--conf-dir`` | yes | - | Folder where configuration is written (existing ``repo/*.yml`` and ``psc/*.yml`` files are overwritten per category) |
+| ``--token`` | yes | env var ``GITHUB_TOKEN`` | Github token used to talk to the API; prompted for if not passed and the env var is unset |
+| ``--org`` | no | ``OCA`` | The Github organization to read from; prompted for if not passed |
+| ``--repo-whitelist`` | no | env var ``REPO_WHITELIST`` | CSV list of repo name prefixes; only matching repos are exported, and only the PSC teams found on those repos are exported |
+
+This script is meant to be run once, to seed a new conf repo from an existing
+organization; it is not installed as a console script (unlike the tools below),
+so it must be run with `python scripts/bootstrap_data.py`.
+
 # Usage
 
 ## Manage repos
@@ -107,8 +120,8 @@ Setup and update repositories and teams based on the YAML conf.
 | Option | Required | Default | Description |
 | --- | --- | --- | --- |
 | ``--conf-dir`` | yes | - | Folder where configuration is stored |
-| ``--token`` | yes | env var ``GITHUB_TOKEN`` | Github token used to talk to the API |
-| ``--org`` | no | ``OCA`` | The Github organization to operate on |
+| ``--token`` | yes | env var ``GITHUB_TOKEN`` | Github token used to talk to the API; prompted for if not passed and the env var is unset |
+| ``--org`` | no | ``OCA`` | The Github organization to operate on; prompted for if not passed |
 
 ```
 oca-repo-manage --conf-dir ./conf --org OCA --token $GITHUB_TOKEN
@@ -122,7 +135,7 @@ Generate the repo inventory docs from the YAML conf.
 | --- | --- | --- | --- |
 | ``--conf-dir`` | yes | - | Folder where configuration is stored |
 | ``--path`` | yes | - | Folder where the generated pages must be written |
-| ``--org`` | no | ``OCA`` | The Github organization to operate on |
+| ``--org`` | no | ``OCA`` | The Github organization to operate on; prompted for if not passed |
 
 ```
 oca-repo-pages --conf-dir ./conf --path docsource --org OCA
