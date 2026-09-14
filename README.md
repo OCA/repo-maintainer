@@ -72,6 +72,13 @@ Review, stage all the changes, commit and open a PR.
 
 You can prevent this tool to edit a repo by adding ``manual_branch_mgmt`` boolean flag to repo's conf.
 
+By default, when `oca-repo-manage` creates a new branch on GitHub it starts from an empty repo
+(only the project template is applied). You can add the ``new_branch_not_empty`` boolean flag
+to a repo's conf to make new branches start from the content of the closest existing branch
+with a lower version instead (falling back to the repo's default branch if none is found).
+In that case, the project template is re-applied for the new Odoo version and all addons are
+marked as ``installable = False``, so maintainers can port them one by one.
+
 ## Set the default branch on all repos
 
 This action has to be performed manually when you need to switch the default branch on all (or some) repos in your conf.

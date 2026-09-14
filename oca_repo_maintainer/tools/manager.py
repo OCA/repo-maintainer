@@ -15,6 +15,7 @@ import copier
 import github3
 from github3.exceptions import NotFoundError
 
+from .manifest import mark_modules_uninstallable
 from .utils import ConfLoader
 
 handler = logging.StreamHandler(sys.stdout)
@@ -165,24 +166,122 @@ class RepoManager:
                 )
             for member in repo_data.get("maintainers", []):
                 gh_repo.add_collaborator(member)
+            existing_branches = set(repo_branches)
             for branch in sorted(repo_data.get("branches")):
-                if str(branch) not in repo_branches:
-                    self._create_branch(gh_repo, str(branch))
+                branch = str(branch)
+                if branch not in existing_branches:
+                    self._create_branch(gh_repo, branch, repo_data, existing_branches)
+                    existing_branches.add(branch)
             branch = repo_data.get("default_branch")
             if branch and gh_repo.default_branch != branch:
                 gh_repo.edit(name=gh_repo.name, default_branch=branch)
 
-    def _create_branch(self, gh_repo, version):
+    def _create_branch(self, gh_repo, version, repo_data=None, existing_branches=None):
         clone_dir = tempfile.mkdtemp()
         try:
-            self._init_branch(clone_dir, gh_repo, version)
+            self._init_branch(clone_dir, gh_repo, version, repo_data, existing_branches)
         except CalledProcessError:
             _logger.error("Something failed when the new repo was being created")
             raise
         finally:
             shutil.rmtree(clone_dir)
 
-    def _init_branch(self, clone_dir, gh_repo, version):
+    def _init_branch(
+        self, clone_dir, gh_repo, version, repo_data=None, existing_branches=None
+    ):
+        repo_data = repo_data or {}
+        source_branch = None
+        if repo_data.get("new_branch_not_empty"):
+            source_branch = self._get_previous_branch(
+                version, existing_branches or set(), gh_repo.default_branch
+            )
+        if source_branch:
+            self._init_branch_from_previous(clone_dir, gh_repo, version, source_branch)
+        else:
+            self._init_branch_from_scratch(clone_dir, gh_repo, version)
+
+    @staticmethod
+    def _parse_version(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _get_previous_branch(self, version, existing_branches, default_branch=None):
+        """Find the closest existing branch strictly before `version`.
+
+        Falls back to `default_branch` when no earlier branch exists,
+        as it is the best available proxy for "the previous state" of the repo.
+        """
+        target = self._parse_version(version)
+        candidates = []
+        if target is not None:
+            for branch in existing_branches:
+                parsed = self._parse_version(branch)
+                if parsed is not None and parsed < target:
+                    candidates.append((parsed, branch))
+        if candidates:
+            return max(candidates)[1]
+        if default_branch and default_branch in existing_branches:
+            return default_branch
+        return None
+
+    def _init_branch_from_previous(self, clone_dir, gh_repo, version, source_branch):
+        """Create `version` off `source_branch`, keeping its content.
+
+        All addons are marked `installable = False`, as a new Odoo version
+        branch is expected to start empty from a functional standpoint,
+        even though the code is not.
+        """
+        self._run_cmd(
+            [
+                "git",
+                "clone",
+                "--branch",
+                source_branch,
+                "--single-branch",
+                f"https://{self.token}@github.com/{self.org}/{gh_repo.name}",
+                clone_dir,
+            ],
+            cwd=None,
+        )
+        self._setup_user(clone_dir)
+        self._run_cmd(
+            ["git", "checkout", "-b", version],
+            cwd=clone_dir,
+        )
+        copier.run_recopy(
+            clone_dir,
+            data={
+                "repo_name": gh_repo.name,
+                "repo_slug": gh_repo.name,
+                "repo_description": gh_repo.name,
+                "odoo_version": version,
+            },
+            defaults=True,
+            overwrite=True,
+            unsafe=True,
+        )
+        mark_modules_uninstallable(clone_dir)
+        self._run_cmd(
+            ["git", "add", "-A"],
+            cwd=clone_dir,
+        )
+        self._run_cmd(
+            [
+                "git",
+                "commit",
+                "-m",
+                f"[MIG] Create {version} branch from {source_branch}",
+            ],
+            cwd=clone_dir,
+        )
+        self._run_cmd(
+            ["git", "push", "origin", "HEAD"],
+            cwd=clone_dir,
+        )
+
+    def _init_branch_from_scratch(self, clone_dir, gh_repo, version):
         copier.run_copy(
             self.new_repo_template,
             clone_dir,
