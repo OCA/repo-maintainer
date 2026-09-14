@@ -163,6 +163,61 @@ oca-repo-set-default-branch --conf-dir ./conf --branch 18.0 --repo-whitelist rep
 A repo is skipped when it has ``manual_branch_mgmt: true`` in its conf, or when its current
 default branch is ``master``/``main``.
 
+## Configuration reference
+
+The conf dir (`--conf-dir`) is expected to contain, at least, a `global.yml` file plus
+a `repo` and a `psc` entry, each either a single YAML file (`repo.yml` / `psc.yml`) or
+a folder of YAML files (`repo/*.yml` / `psc/*.yml`), all merged together. Every file is
+a mapping keyed by a slug (the repo name, resp. the team name).
+
+### global.yml
+
+| Key | Required | Description |
+| --- | --- | --- |
+| ``owner`` | yes | Name of the GH team granted admin access on every new repo |
+| ``template`` | yes | Copier template used to scaffold a repo when created from scratch |
+| ``team_maintainers`` | no | List of GH team names granted admin access on every new repo |
+| ``maintainers`` | no | List of GH logins automatically added as ``member`` to every PSC team |
+
+### repo/*.yml
+
+Each entry describes one repository:
+
+| Key | Required | Description |
+| --- | --- | --- |
+| ``name`` | yes | Human-readable repo name (used by ``oca-repo-pages``) |
+| ``description`` | yes | Repo description (used by ``oca-repo-pages``) |
+| ``category`` | no | Used to group repos when generating docs via ``oca-repo-pages`` |
+| ``psc`` | yes | Slug of the PSC team (from ``psc/*.yml``) that owns this repo — see [correlation](#correlation-between-repo-and-psc) below |
+| ``maintainers`` | no | List of GH logins added as repo collaborators |
+| ``branches`` | yes | List of branches to create on the repo |
+| ``default_branch`` | no | Branch to set as the repo's default branch |
+| ``manual_branch_mgmt`` | no | When ``true``, ``oca-repo-add-branch`` / ``oca-repo-set-default-branch`` skip this repo |
+| ``new_branch_not_empty`` | no | When ``true``, a newly created branch starts from the content of the closest existing lower-version branch (falling back to the default branch) instead of from an empty repo — see [Add new branches to all repos](#add-new-branches-to-all-repos) |
+
+### psc/*.yml
+
+Each entry describes one PSC (Project/Special interest Steering Committee) team:
+
+| Key | Required | Description |
+| --- | --- | --- |
+| ``name`` | yes | Human-readable team name (used by ``oca-repo-pages``) |
+| ``members`` | no | List of GH logins added to the team with ``member`` role |
+| ``representatives`` | no | List of GH logins added to the team with ``maintainer`` role |
+
+### Correlation between repo and psc
+
+Each repo declares its owning team via ``repo_data["psc"]``, which must match a slug
+defined in ``psc/*.yml``. ``oca-repo-manage`` uses this link to:
+
+* look up (or expect) the matching GH team;
+* grant that team ``push`` access to the repo;
+* sync the team's membership from its ``members``/``representatives`` lists, always
+  adding ``global.yml``'s ``maintainers`` as extra ``members`` on every team.
+
+A repo whose ``psc`` slug has no matching entry in ``psc/*.yml`` will fail at runtime
+when ``oca-repo-manage`` tries to look up the team.
+
 ## Licenses
 
 This repository is licensed under [AGPL-3.0](LICENSE).
