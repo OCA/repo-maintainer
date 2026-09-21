@@ -6,6 +6,7 @@ test-repo-2:
   psc: test-team-2
   maintainers:
     - simahawk
+    - etobella
   branches:
     - "13.0"
     - "12.0"
