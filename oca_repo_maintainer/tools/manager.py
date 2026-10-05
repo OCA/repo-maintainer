@@ -15,6 +15,7 @@ import copier
 import github3
 from github3.exceptions import NotFoundError
 
+from . import migration_issue
 from .manifest import mark_modules_uninstallable
 from .utils import ConfLoader
 
@@ -171,6 +172,8 @@ class RepoManager:
                 branch = str(branch)
                 if branch not in existing_branches:
                     self._create_branch(gh_repo, branch, repo_data, existing_branches)
+                    if self._migration_issue_enabled(repo_data):
+                        self._create_migration_issue(gh_repo, branch, existing_branches)
                     existing_branches.add(branch)
             branch = repo_data.get("default_branch")
             edit_kwargs = {}
@@ -343,6 +346,73 @@ class RepoManager:
             ["git", "push", "origin", "HEAD"],
             cwd=clone_dir,
         )
+
+    def _migration_issue_enabled(self, repo_data):
+        # Never touch manually managed repos nor tool repos (no Odoo branches)
+        if repo_data.get("manual_branch_mgmt"):
+            return False
+        branches = repo_data.get("branches") or []
+        if not any(migration_issue.is_odoo_version(x) for x in branches):
+            return False
+        default = self.conf_global.get("create_migration_issue", False)
+        return repo_data.get("create_migration_issue", default)
+
+    def _create_migration_issue(self, gh_repo, version, existing_branches):
+        """Create the migration issue listing the addons to port to `version`.
+
+        Addons are taken from the closest existing lower-version branch.
+        Nothing is done when there's no such branch (eg: brand new repo).
+        """
+        if not migration_issue.is_odoo_version(version):
+            return
+        source_branch = self._get_previous_branch(
+            version,
+            {x for x in existing_branches if migration_issue.is_odoo_version(x)},
+        )
+        if not source_branch:
+            _logger.info(
+                "%s: no branch to migrate from to %s, skipping migration issue",
+                gh_repo.name,
+                version,
+            )
+            return
+        modules = self._get_modules_list(gh_repo, source_branch)
+        milestone = self._get_or_create_milestone(gh_repo, version)
+        title = migration_issue.migration_issue_title(version)
+        for issue in gh_repo.issues(milestone=milestone.number, state="all"):
+            if issue.title == title:
+                _logger.info("%s: migration issue already exists", gh_repo.name)
+                return issue
+        labels = [
+            x.name for x in gh_repo.labels() if x.name in migration_issue.ISSUE_LABELS
+        ]
+        _logger.info("%s: creating migration issue for %s", gh_repo.name, version)
+        return gh_repo.create_issue(
+            title=title,
+            body=migration_issue.migration_issue_body(version, modules),
+            milestone=milestone.number,
+            labels=labels,
+        )
+
+    def _get_modules_list(self, gh_repo, branch):
+        """Get the sorted list of addons in `branch`."""
+        modules = []
+        root_contents = gh_repo.directory_contents("", branch, return_as=dict)
+        for content in root_contents.values():
+            if content.type != "dir":
+                continue
+            dir_contents = gh_repo.directory_contents(
+                content.path, branch, return_as=dict
+            )
+            if any(x in dir_contents for x in migration_issue.MANIFESTS):
+                modules.append(content.path)
+        return sorted(modules)
+
+    def _get_or_create_milestone(self, gh_repo, version):
+        for milestone in gh_repo.milestones(state="all"):
+            if milestone.title == version:
+                return milestone
+        return gh_repo.create_milestone(version)
 
     def _run_cmd(self, cmd, cwd, **kw):
         check_call(cmd, cwd, **kw)

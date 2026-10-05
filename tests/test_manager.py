@@ -518,3 +518,143 @@ class TestManager(TestCase):
         #         f"INFO:{logger_name}:No team to process",
         #     ]
         #     self.assertEqual(capt.output, expected)
+
+
+class TestMigrationIssue(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.manager = RepoManager(conf_path.as_posix(), "OCA", "ghp_fake_test_token")
+
+    def _named_mock(self, name, **kw):
+        # `name` is a reserved Mock kwarg
+        res = mock.Mock(**kw)
+        res.name = name
+        return res
+
+    def _mock_repo(self, issues=(), milestones=(), labels=()):
+        gh_repo = mock.Mock()
+        gh_repo.name = "test-repo-1"
+        gh_repo.issues.return_value = list(issues)
+        gh_repo.milestones.return_value = list(milestones)
+        gh_repo.labels.return_value = [self._named_mock(x) for x in labels]
+        gh_repo.create_milestone.return_value = mock.Mock(number=7, title="17.0")
+        return gh_repo
+
+    def test_enabled(self):
+        repo_data = {"branches": ["15.0", "16.0"]}
+        enabled = self.manager._migration_issue_enabled
+        self.assertFalse(enabled(repo_data))
+        self.manager.conf_global["create_migration_issue"] = True
+        self.assertTrue(enabled(repo_data))
+        self.assertFalse(enabled(dict(repo_data, create_migration_issue=False)))
+        self.manager.conf_global["create_migration_issue"] = False
+        self.assertTrue(enabled(dict(repo_data, create_migration_issue=True)))
+
+    def test_enabled_never_on_manual_or_tool_repos(self):
+        self.manager.conf_global["create_migration_issue"] = True
+        enabled = self.manager._migration_issue_enabled
+        for repo_data in (
+            {"branches": ["16.0"], "manual_branch_mgmt": True},
+            {"branches": ["master"]},
+            {"branches": ["main", "1.5"]},
+            {"branches": []},
+        ):
+            self.assertFalse(enabled(repo_data), repo_data)
+            self.assertFalse(
+                enabled(dict(repo_data, create_migration_issue=True)), repo_data
+            )
+
+    def test_get_modules_list(self):
+        gh_repo = mock.Mock()
+
+        def directory_contents(path, ref, return_as=None):
+            self.assertEqual(ref, "16.0")
+            if path == "":
+                return {
+                    "mod_b": mock.Mock(type="dir", path="mod_b"),
+                    "mod_a": mock.Mock(type="dir", path="mod_a"),
+                    "setup": mock.Mock(type="dir", path="setup"),
+                    "README.md": mock.Mock(type="file", path="README.md"),
+                }
+            return {
+                "mod_a": {"__manifest__.py": 1},
+                "mod_b": {"__openerp__.py": 1},
+                "setup": {"mod_a": 1},
+            }[path]
+
+        gh_repo.directory_contents.side_effect = directory_contents
+        self.assertEqual(
+            self.manager._get_modules_list(gh_repo, "16.0"), ["mod_a", "mod_b"]
+        )
+
+    def test_create_issue(self):
+        gh_repo = self._mock_repo(labels=("help wanted", "bug", "no stale"))
+        with mock.patch.object(
+            RepoManager, "_get_modules_list", return_value=["mod_a", "mod_b"]
+        ) as get_modules:
+            self.manager._create_migration_issue(gh_repo, "17.0", {"15.0", "16.0"})
+        get_modules.assert_called_once_with(gh_repo, "16.0")
+        gh_repo.create_milestone.assert_called_once_with("17.0")
+        gh_repo.issues.assert_called_once_with(milestone=7, state="all")
+        kw = gh_repo.create_issue.call_args.kwargs
+        self.assertEqual(kw["title"], "Migration to version 17.0")
+        self.assertEqual(kw["milestone"], 7)
+        self.assertEqual(kw["labels"], ["help wanted", "no stale"])
+        self.assertIn("Migration-to-version-17.0", kw["body"])
+        self.assertIn("- [ ] mod_a\n- [ ] mod_b", kw["body"])
+
+    def test_reuse_milestone_and_issue(self):
+        milestone = mock.Mock(number=3)
+        milestone.title = "17.0"
+        issue = mock.Mock()
+        issue.title = "Migration to version 17.0"
+        gh_repo = self._mock_repo(issues=[issue], milestones=[milestone])
+        with mock.patch.object(RepoManager, "_get_modules_list", return_value=[]):
+            res = self.manager._create_migration_issue(gh_repo, "17.0", {"16.0"})
+        self.assertIs(res, issue)
+        gh_repo.create_milestone.assert_not_called()
+        gh_repo.create_issue.assert_not_called()
+
+    def test_skip_without_previous_branch(self):
+        for version, existing in (
+            ("17.0", set()),
+            ("17.0", {"18.0"}),
+            ("17.0", {"main", "16.5"}),
+            ("main", {"16.0"}),
+            ("17.5", {"16.0"}),
+        ):
+            gh_repo = self._mock_repo()
+            with mock.patch.object(RepoManager, "_get_modules_list") as get_modules:
+                self.manager._create_migration_issue(gh_repo, version, existing)
+            get_modules.assert_not_called()
+            gh_repo.create_issue.assert_not_called()
+
+    def test_process_repositories_hook(self):
+        gh_repo = self._named_mock("test-repo-1", default_branch="16.0")
+        gh_repo.branches.return_value = [self._named_mock("15.0")]
+        self.manager.gh = mock.Mock()
+        self.manager.gh.repository.return_value = gh_repo
+        self.manager.gh_org = mock.Mock()
+        self.manager.gh_org.repositories.return_value = [
+            self._named_mock("test-repo-1")
+        ]
+        self.manager.gh_org.team_by_name.return_value.repositories.return_value = []
+        self.manager.conf_repo = {
+            "test-repo-1": dict(
+                self.manager.conf_repo["test-repo-1"], create_migration_issue=True
+            )
+        }
+        calls = []
+
+        def create_issue(gh_repo, version, existing_branches):
+            # copy: the set is updated after the call
+            calls.append((gh_repo, version, set(existing_branches)))
+
+        with (
+            mock.patch.object(RepoManager, "_create_branch"),
+            mock.patch.object(
+                RepoManager, "_create_migration_issue", side_effect=create_issue
+            ),
+        ):
+            self.manager._process_repositories()
+        self.assertEqual(calls, [(gh_repo, "16.0", {"15.0"})])

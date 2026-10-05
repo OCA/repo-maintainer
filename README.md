@@ -92,6 +92,24 @@ with a lower version instead (falling back to the repo's default branch if none 
 In that case, the project template is re-applied for the new Odoo version and all addons are
 marked as ``installable = False``, so maintainers can port them one by one.
 
+### Migration issues
+
+When `oca-repo-manage` creates a new version branch, it can also create the
+"Migration to version X" issue (the same one `oca-create-migration-issue` from
+OCA/maintainer-tools creates), using the same token used to manage repos.
+Enable it for all repos by setting ``create_migration_issue: true`` in ``global.yml``,
+and/or override it per repo with the same key in the repo's conf.
+
+The issue lists all the addons found in the closest existing lower-version branch,
+is assigned to a milestone named after the new branch (created if missing) and gets
+the ``help wanted``, ``work in progress`` and ``no stale`` labels if they exist on the repo.
+Nothing is created when no lower-version branch exists (eg: brand new repos)
+or when an issue with the same title already exists in the milestone.
+
+Regardless of the flag, repos with ``manual_branch_mgmt: true`` and repos without
+any Odoo version branch (``X.0``, eg: tool repos using ``master``/``main``) are never
+touched. Only Odoo version branches are considered, both as new and as source branch.
+
 ## Set the default branch on all repos
 
 This action has to be performed manually when you need to switch the default branch on all (or some) repos in your conf.
@@ -191,6 +209,7 @@ a mapping keyed by a slug (the repo name, resp. the team name).
 | ``template`` | yes | Copier template used to scaffold a repo when created from scratch |
 | ``team_maintainers`` | no | List of GH team names granted admin access on every new repo |
 | ``maintainers`` | no | List of GH logins automatically added as ``member`` to every PSC team |
+| ``create_migration_issue`` | no | When ``true``, create a migration issue on every repo when a new version branch is created — see [Migration issues](#migration-issues). Defaults to ``false`` |
 
 ### repo/*.yml
 
@@ -208,6 +227,7 @@ Each entry describes one repository:
 | ``manual_branch_mgmt`` | no | When ``true``, ``oca-repo-add-branch`` / ``oca-repo-set-default-branch`` skip this repo |
 | ``new_branch_not_empty`` | no | When ``true``, a newly created branch starts from the content of the closest existing lower-version branch (falling back to the default branch) instead of from an empty repo — see [Add new branches to all repos](#add-new-branches-to-all-repos) |
 | ``archived`` | no | When set, the repository will be marked as archived. |
+| ``create_migration_issue`` | no | Override ``global.yml``'s ``create_migration_issue`` for this repo (ignored on ``manual_branch_mgmt`` and non-Odoo repos) |
 
 ### psc/*.yml
 
